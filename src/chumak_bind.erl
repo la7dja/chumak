@@ -8,27 +8,11 @@
 
 -export([start_link/2, listener/2]).
 
--spec start_link(Host::string(), Port::number()) -> {ok, BindPid::pid()} | {error, Reason::term()}.
-start_link(Host, Port) ->
-    ParentPid = self(),
-
+-spec start_link(Host::inet:socket_address() | inet:hostname(), Port::number()) -> {ok, BindPid::pid()} | {error, Reason::term()}.
+start_link(Host, Port) when is_list(Host) ->
     case inet:getaddr(Host, inet) of
         {ok, Addr} ->
-            case gen_tcp:listen(Port, ?SOCKET_OPTS([{ip, Addr}])) of
-                {ok, ListenSocket} ->
-                    Pid = spawn_link(?MODULE, listener, [ListenSocket, ParentPid]),
-                    {ok, Pid};
-                {error, Reason} ->
-                    error_logger:error_report([
-                                               bind_error,
-                                               {host, Host},
-                                               {addr, Addr},
-                                               {port, Port},
-                                               listen_error,
-                                               {error, Reason}
-                                              ]),
-                    {error, Reason}
-            end;
+            start_helper(Host, Addr, Port);
 
         {error, IpReason} ->
             error_logger:error_report([
@@ -38,6 +22,29 @@ start_link(Host, Port) ->
                                        {error, IpReason}
                                       ]),
             {error, IpReason}
+    end;
+
+start_link(Addr, Port) ->
+    start_helper(undefined, Addr, Port).
+
+
+start_helper(Host, Addr, Port) ->
+    ParentPid = self(),
+
+    case gen_tcp:listen(Port, ?SOCKET_OPTS([{ip, Addr}])) of
+        {ok, ListenSocket} ->
+            Pid = spawn_link(?MODULE, listener, [ListenSocket, ParentPid]),
+            {ok, Pid};
+        {error, Reason} ->
+            error_logger:error_report([
+                                       bind_error,
+                                       {host, Host},
+                                       {addr, Addr},
+                                       {port, Port},
+                                       listen_error,
+                                       {error, Reason}
+                                      ]),
+            {error, Reason}
     end.
 
 

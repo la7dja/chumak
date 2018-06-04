@@ -57,14 +57,14 @@
 %% @doc connect into a peer
 -spec connect(Type::socket_type(),
               Transport::transport(),
-              Host::list(),
+              Host::inet:socket_address() | inet:hostname(),
               Port::integer(),
               Resource::term(),
               Opts::peer_opts()) ->
                      {ok, Pid::pid()} | {error, Reason::term()}.
 connect(Type, tcp, Host, Port, Resource, Opts)
   when is_atom(Type),
-       is_list(Host),
+       is_list(Host) orelse is_tuple(Host),
        is_integer(Port),
        is_list(Resource) ->
     gen_server:start_link(?MODULE, {connect, Type, Host, Port, Resource, Opts, self()}, []).

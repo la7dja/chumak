@@ -106,12 +106,13 @@ set_socket_option(SocketPid, Option, Value)
 
 %% @doc socket to a peer
 -spec connect(SocketPid::pid(), Transport::transport(),
-              Host::string(), Port::integer(), Resource::term()) ->
+              Host::inet:socket_address() | inet:hostname(),
+              Port::integer(), Resource::term()) ->
                      {ok, PeerPid::pid()} | {error, Reason::atom()}.
 connect(SocketPid, Transport, Host, Port, Resource)
   when is_pid(SocketPid),
        is_atom(Transport),
-       is_list(Host),
+       is_list(Host) orelse is_tuple(Host),
        is_number(Port),
        is_list(Resource)->
 
@@ -121,13 +122,13 @@ connect(SocketPid, Transport, Host, Port) ->
     connect(SocketPid, Transport, Host, Port, "").
 
 %% @doc bind in a host and port
--spec bind(SocketPid::pid(), Transport::transport(), Host::string(), Port::integer()) ->
+-spec bind(SocketPid::pid(), Transport::transport(), Host::inet:socket_address() | inet:hostname(), Port::integer()) ->
     {ok, pid()} | {error, term()}.
 
 bind(SocketPid, Transport, Host, Port)
   when is_pid(SocketPid),
        is_atom(Transport),
-       is_list(Host),
+       is_list(Host) orelse is_tuple(Host),
        is_number(Port)->
 
     gen_server:call(SocketPid, {bind, Transport, Host, Port}).
