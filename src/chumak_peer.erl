@@ -126,6 +126,7 @@ close(PeerPid) ->
 %% connect into peer by passing
 init({connect, Type, Host, Port, Resource, Opts, ParentPid}) ->
     %% the first job of this gen_server is connect
+    process_flag(trap_exit, true),
     gen_server:cast(self(), connect),
     State = pending_connect_state(Type, Host, Port, Resource, Opts, ParentPid),
     {ok, State};
@@ -218,6 +219,8 @@ handle_info({tcp, _Port, Frame}, State) ->
     Reply = chumak_protocol:decode(State#state.decoder, Frame),
     process_decoder_reply(State, Reply);
 
+handle_info(try_connect, State) ->
+  try_connect(State);
 
 handle_info({tcp_closed, _Port}, #state{host=nil}=State) ->
     %% when not support reconnect
@@ -225,6 +228,9 @@ handle_info({tcp_closed, _Port}, #state{host=nil}=State) ->
 
 handle_info({tcp_closed, _Port}, State) ->
     try_connect(State);
+
+handle_info({'EXIT', _Pid, Reason}, State) ->
+    {stop, Reason, State};
 
 handle_info(InfoMessage, State) ->
     error_logger:info_report([
@@ -278,8 +284,8 @@ try_connect(#state{host=Host, port=Port, parent_pid=ParentPid,
                                        connection_error,
                                        {error, Reason}
                                       ]),
-            timer:sleep(?RECONNECT_TIMEOUT),
-            try_connect(State)
+            erlang:send_after(?RECONNECT_TIMEOUT, self(), try_connect),
+            {noreply, State}
     end.
 
 %% the result must be either:
